@@ -80,7 +80,7 @@ function [ wall_map, robot_start, target_pos] = generateEnvironment( SAVE_FILE )
         wall_map(i,4) = Walls(2,2,i);
     end
     
-    % Save output variables to .mat file
+    % Append output variables to SAVE_FILE (.mat file)
     save(SAVE_FILE, 'wall_map', 'robot_start', 'target_pos', '-append');
    
     % Plotting left in for easy visualization during development
@@ -91,6 +91,7 @@ function [ wall_map, robot_start, target_pos] = generateEnvironment( SAVE_FILE )
     for i=1:NUM_WALLS
        plot([wall_map(i,1), wall_map(i,3)], [wall_map(i,2), wall_map(i,4)], 'linewidth', 2);
     end
-    plot([robot_start(1), target_pos(1)], [robot_start(2), target_pos(2)], '*');
+    plot(robot_start(1), robot_start(2), 'o');
+    plot(target_pos(1), target_pos(2), '*');
 end
 

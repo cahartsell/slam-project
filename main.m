@@ -15,8 +15,11 @@ function [ ] = main( )
     WALL_EDGE_PAD       = 5;
     
     %pathfinder Macros
-    MAP_SIZE            = 11; %Should be odd number
-    TILE_SIZE           = 5;
+    MAP_SIZE            = 41; % Should be odd number
+    TILE_SIZE           = 2; % Recommend even number
+    DIST_WEIGHT         = 1000;
+    VISUALIZE_MAP       = 1;
+    VIS_MAP_ALPHA       = 0.3; % Transparency percentage
     
     % Save macros to file so all functions can access. Overwrite old file
     save( SAVE_FILE );
