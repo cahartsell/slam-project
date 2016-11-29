@@ -76,6 +76,35 @@ function [ desired_heading ] = pathfinder( current_map, robot_pos, target, SAVE_
     end
     
     % Find best path using map
+    % http://www.redblobgames.com/pathfinding/a-star/introduction.html
+    found_path = 0;
+    num_checked = 1;
+    frontier(1,1) = MAP_SIZE/2;
+    frontier(2,1) = MAP_SIZE/2;
+    came_from = zeros(2, MAP_SIZE, MAP_SIZE);
+    while (~found_path)
+        for i = 1:1:3
+            for j = 1:1:3
+                if (i == 0) && (j == 0) % Don't check current pos
+                    continue;
+                end
+                cur_x_ind = frontier(1, num_checked);
+                cur_y_ind = frontier(2, num_checked);
+                next_x_ind = cur_x_ind + (i-2);
+                next_y_ind = cur_y_ind + (j-2);
+                if (next_x_ind < 1) || (next_x_ind > MAP_SIZE) || (next_y_ind < 1) || (next_y_ind > MAP_SIZE)
+                    continue; % Skip if out of map range
+                end
+                if( map( next_x_ind, next_y_ind ) > 0 ) % No obstacle in tile
+                    frontier(1, num_checked+1) = next_x_ind;
+                    frontier(2, num_checked+1) = next_y_ind;
+                    came_from(1, next_x_ind, next_y_ind) = cur_x_ind;
+                    came_from(2, next_x_ind, next_y_ind) = cur_y_ind;
+                    num_checked = num_checked + 1;
+                end
+            end
+        end
+    end
     
 
     % Map visualization
