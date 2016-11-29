@@ -19,6 +19,7 @@ function [ ] = main( )
     TILE_SIZE           = 2; % Recommend even number
     DIST_WEIGHT         = 1000;
     VISUALIZE_MAP       = 1;
+    VISUALIZE_PATH      = 1;
     VIS_MAP_ALPHA       = 0.3; % Transparency percentage
     
     % Save macros to file so all functions can access. Overwrite old file

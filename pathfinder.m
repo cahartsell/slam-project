@@ -6,6 +6,9 @@ function [ desired_heading ] = pathfinder( current_map, robot_pos, target, SAVE_
     %       nested functions. Avoid nested functions
     load( SAVE_FILE );
     
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %                       MAP BUILDING                        %
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % Initialize map (centered on robot)
     map = zeros(MAP_SIZE, MAP_SIZE);
     map_origin(1) = robot_pos(1) - (TILE_SIZE * (MAP_SIZE/2));
@@ -45,7 +48,7 @@ function [ desired_heading ] = pathfinder( current_map, robot_pos, target, SAVE_
     dist_from_target = repmat( dx2, MAP_SIZE, 1)' + repmat( dy2, MAP_SIZE, 1);
     dist_from_target = dist_from_target.^(1/2);
     denom_check = dist_from_target < 0.1;     % Prevent divide by zero
-    dist_from_target = dist_from_target + denom_check;
+    dist_from_target = dist_from_target + (denom_check/10);
     map = (dist_from_target.^(-1)) * DIST_WEIGHT;
     
     % Give negative weighting to map tiles with obstacles (walls)
@@ -55,12 +58,12 @@ function [ desired_heading ] = pathfinder( current_map, robot_pos, target, SAVE_
     points_ind = points_ind .* temp;
     temp = points_ind <= MAP_SIZE;
     points_ind = points_ind .* temp;
-    for i = 1:num_walls
-        last_x = points_ind(1,1,i);
-        last_y = points_ind(2,1,i);
-        for j = 1:max_num_points
-            x_ind = points_ind(1,j,i);
-            y_ind = points_ind(2,j,i);
+    for j = 1:num_walls
+        last_x = points_ind(1,1,j);
+        last_y = points_ind(2,1,j);
+        for k = 1:max_num_points
+            x_ind = points_ind(1,k,j);
+            y_ind = points_ind(2,k,j);
             if (x_ind > 0) && (y_ind > 0)
                 map( x_ind, y_ind ) = -1;
                 % Simple (but not particularly precise) method to prevent
@@ -75,42 +78,96 @@ function [ desired_heading ] = pathfinder( current_map, robot_pos, target, SAVE_
         end
     end
     
-    % Find best path using map
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %                       PATHFINDING                         %
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    % Find best path using custom variant of Dijkstra's algorithm
+    % A* algorithm would be faster, but harder to implement
     % http://www.redblobgames.com/pathfinding/a-star/introduction.html
-    found_path = 0;
-    num_checked = 1;
-    frontier(1,1) = MAP_SIZE/2;
-    frontier(2,1) = MAP_SIZE/2;
+    num_added = 0;
+    last_frontier(1,1) = ceil(MAP_SIZE/2);
+    last_frontier(2,1) = ceil(MAP_SIZE/2);
     came_from = zeros(2, MAP_SIZE, MAP_SIZE);
-    while (~found_path)
-        for i = 1:1:3
-            for j = 1:1:3
-                if (i == 0) && (j == 0) % Don't check current pos
-                    continue;
-                end
-                cur_x_ind = frontier(1, num_checked);
-                cur_y_ind = frontier(2, num_checked);
-                next_x_ind = cur_x_ind + (i-2);
-                next_y_ind = cur_y_ind + (j-2);
-                if (next_x_ind < 1) || (next_x_ind > MAP_SIZE) || (next_y_ind < 1) || (next_y_ind > MAP_SIZE)
-                    continue; % Skip if out of map range
-                end
-                if( map( next_x_ind, next_y_ind ) > 0 ) % No obstacle in tile
-                    frontier(1, num_checked+1) = next_x_ind;
-                    frontier(2, num_checked+1) = next_y_ind;
-                    came_from(1, next_x_ind, next_y_ind) = cur_x_ind;
-                    came_from(2, next_x_ind, next_y_ind) = cur_y_ind;
-                    num_checked = num_checked + 1;
+    while ( last_frontier(1,1) ) % Run till frontier fully explored
+        frontier = zeros(2,1); % Clear frontier variable
+        [~, sz] = size( last_frontier );
+        for i = 1:sz        
+            cur_x_ind = last_frontier(1, i);
+            cur_y_ind = last_frontier(2, i);
+            for j = -1:1:1
+                for k = -1:1:1
+                    % Nested for loops allow movement in 4 directions (Forward,
+                    % Back, Left, Right, Diagonal)
+                    if (j == 0) && (k == 0) % Don't check current pos
+                        continue;
+                    end
+                    next_x_ind = cur_x_ind + j;
+                    next_y_ind = cur_y_ind + k;
+                    if (next_x_ind < 1) || (next_x_ind > MAP_SIZE) || (next_y_ind < 1) || (next_y_ind > MAP_SIZE)
+                        continue; % Skip if out of map range
+                    end
+                    % No 'came_from' data on tile means tile unvisited
+                    old_tile = came_from(1, next_x_ind, next_y_ind);
+                    if (map( next_x_ind, next_y_ind ) > 0) && (~old_tile) 
+                        % No obstacle in tile and tile not visited before
+                        % frontier grows every loop iteration (inefficient)
+                        frontier(1, num_added+1) = next_x_ind;
+                        frontier(2, num_added+1) = next_y_ind;
+                        came_from(1, next_x_ind, next_y_ind) = cur_x_ind;
+                        came_from(2, next_x_ind, next_y_ind) = cur_y_ind;
+                        num_added = num_added + 1;
+                    end
                 end
             end
         end
+        num_added = 0;
+        
+        
+        %%%%%%%%%%%%%%%%%%%%%%%%%%% DEBUG
+        temp_map = map;
+        for i = 1:sz
+            temp_map( last_frontier(1,i), last_frontier(2,i) ) = 0;
+        end
+        im = imagesc( temp_map' );
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        
+        last_frontier = frontier;
+        
     end
     
-
-    % Map visualization
+    % Find highest value point within the allowed_map
+    allowed_tile_mask(:,:) = came_from(1,:,:) > 0;
+    allowed_map = map .* allowed_tile_mask;
+    [~, temp_index] = max( allowed_map(:) );
+    goal_index(2) = ceil( temp_index/MAP_SIZE );
+    goal_index(1) = mod( temp_index - goal_index(2), MAP_SIZE ) + 1;
+    goal_index
+    
+    % Create path by backtracking steps from goal to start
+    found_path = 0;
+    step = 1;
+    path(:, step) = goal_index(:);
+    while( ~found_path );
+        step = step + 1;
+        path(:, step) = came_from(:, path(1, step-1), path(2, step-1));
+        if (path(1, step) == ceil(MAP_SIZE/2)) && (path(2, step) == ceil(MAP_SIZE/2))
+            path = fliplr( path ); % Reverse order so path(1) is current pos
+            found_path = 1;
+        end
+    end
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %                       VISUALIZATION                       %
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     if(VISUALIZE_MAP)
         x_rng = [ map_origin(1) + TILE_SIZE/2, map_origin(1) + TILE_SIZE/2 + (TILE_SIZE * (MAP_SIZE-1))];
         y_rng = [ map_origin(2) + TILE_SIZE/2, map_origin(2) + TILE_SIZE/2 + (TILE_SIZE * (MAP_SIZE-1))];
+        if(VISUALIZE_PATH)
+            [~, sz] = size( path );
+            for i = 1:sz
+                map( path(1,i), path(2,i) ) = 0;
+            end
+        end
         im = imagesc(x_rng, y_rng, map');
         im.AlphaData = VIS_MAP_ALPHA;
     end
