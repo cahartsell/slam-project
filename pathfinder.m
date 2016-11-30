@@ -140,8 +140,10 @@ function [ desired_heading ] = pathfinder( current_map, robot_pos, target, SAVE_
     allowed_map = map .* allowed_tile_mask;
     [~, temp_index] = max( allowed_map(:) );
     goal_index(2) = ceil( temp_index/MAP_SIZE );
-    goal_index(1) = mod( temp_index - goal_index(2), MAP_SIZE ) + 1;
-    goal_index
+    goal_index(1) = mod( temp_index, MAP_SIZE );
+    if (goal_index(1) == 0)
+        goal_index(1) = MAP_SIZE;
+    end
     
     % Create path by backtracking steps from goal to start
     found_path = 0;
