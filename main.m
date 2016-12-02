@@ -15,8 +15,8 @@ function [ ] = main( )
     WALL_EDGE_PAD       = 5;
     
     %pathfinder Macros
-    MAP_SIZE            = 41; % Should be odd number
     TILE_SIZE           = 2; % Recommend even number
+    MAP_SIZE            = ENVIRONMENT_SIZE / TILE_SIZE; % This should be an integer
     DIST_WEIGHT         = 1000;
     VISUALIZE_MAP       = 1;
     VISUALIZE_PATH      = 1;
@@ -29,8 +29,8 @@ function [ ] = main( )
     
     load( SAVE_FILE );
     
-    pathfinder( wall_map, robot_start, target_pos, SAVE_FILE );
-
-
+    map = zeros(MAP_SIZE, MAP_SIZE);
+    [ heading, map ] = pathfinder( wall_map, robot_start, target_pos, SAVE_FILE, map );
+    
 end
 

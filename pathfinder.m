@@ -1,4 +1,4 @@
-function [ desired_heading ] = pathfinder( current_map, robot_pos, target, SAVE_FILE )
+function [ desired_heading, map ] = pathfinder( current_obstacles, robot_pos, target, SAVE_FILE, map )
 %PATHFINDER Summary of this function goes here
 %   Detailed explanation goes here
     
@@ -9,45 +9,68 @@ function [ desired_heading ] = pathfinder( current_map, robot_pos, target, SAVE_
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %                       MAP BUILDING                        %
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    % Initialize map (centered on robot)
-    map = zeros(MAP_SIZE, MAP_SIZE);
-    map_origin(1) = robot_pos(1) - (TILE_SIZE * (MAP_SIZE/2));
-    map_origin(2) = robot_pos(2) - (TILE_SIZE * (MAP_SIZE/2));
-    [ num_walls, ~ ] = size( current_map );
+    % Initialize map (centered on global environment origin)
+    map_origin(1) = 0;
+    map_origin(2) = 0; 
+    [ num_walls, ~ ] = size( current_obstacles );
+    redraw_map = size( find(map) );  % If map is empty, need to redraw
+    redraw_map = ~redraw_map;
+    
+    % Determine map indicies of robot position
+    robot_pos_ind(1) = robot_pos(1) - map_origin(1);
+    robot_pos_ind(2) = robot_pos(2) - map_origin(2);
+    robot_pos_ind = ceil( robot_pos_ind ./ TILE_SIZE );
+    
+    % Determine if target position has changed since last iteration
+    [~, temp_index] = min( map(:) );
+    last_target(2) = ceil( temp_index/MAP_SIZE );
+    last_target(1) = mod( temp_index, MAP_SIZE );
+    if (last_target(1) == 0)
+        last_target(1) = MAP_SIZE;
+    end
+    target_ind(1) = target(1) - map_origin(1);
+    target_ind(2) = target(2) - map_origin(2);
+    target_ind = ceil( target_ind ./ TILE_SIZE );
+    if (target_ind ~= last_target)
+        redraw_map = 1;
+    end
+
+    
+    if (redraw_map)
+        % Add gradient weighting to map which increases with distance from target
+        dx2 = repmat( (map_origin(1)+TILE_SIZE/2) , 1, MAP_SIZE) + (TILE_SIZE * (0:MAP_SIZE-1));
+        dy2 = repmat( (map_origin(2)+TILE_SIZE/2) , 1, MAP_SIZE) + (TILE_SIZE * (0:MAP_SIZE-1));
+        dx2 = dx2 - repmat( target(1), 1, MAP_SIZE );
+        dy2 = dy2 - repmat( target(2), 1, MAP_SIZE );
+        dx2 = dx2.^2;
+        dy2 = dy2.^2;
+        dist_from_target = repmat( dx2, MAP_SIZE, 1)' + repmat( dy2, MAP_SIZE, 1);
+        dist_from_target = dist_from_target.^(1/2);
+        map = dist_from_target ./  TILE_SIZE;
+    end
     
     % Determine set of points along each wall from the current wall map. 
-    dx = current_map(:,3) - current_map(:,1);
-    dy = current_map(:,4) - current_map(:,2);
+    dx = current_obstacles(:,3) - current_obstacles(:,1);
+    dy = current_obstacles(:,4) - current_obstacles(:,2);
     wall_len = sqrt( dx.^2 + dy.^2 );
     num_points = ceil( wall_len / TILE_SIZE );
     max_num_points = max( num_points );
     wallXSteps = (dx ./ (max_num_points - 1)) * (0:(max_num_points-1));
     wallYSteps = (dy ./ (max_num_points - 1)) * (0:(max_num_points-1));
-    points(1, :, :) = (repmat(current_map(:,1), 1, max_num_points) + wallXSteps)';
-    points(2, :, :) = (repmat(current_map(:,2), 1, max_num_points) + wallYSteps)';
+    points(1, :, :) = (repmat(current_obstacles(:,1), 1, max_num_points) + wallXSteps)';
+    points(2, :, :) = (repmat(current_obstacles(:,2), 1, max_num_points) + wallYSteps)';
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % points(x,y,z) is addressed:    
     %   x = x-coord (1) or y-coord (2)
     %   y = Point along wall ( 1 to max_num_points )
     %   x = Wall Number ( 1 to num_walls )
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    
+
     % Convert wall points from global frame to map indicies
     % points_ind addressed the same as points
     points_ind(1,:,:) = points(1, :, :) - map_origin(1);
     points_ind(2,:,:) = points(2, :, :) - map_origin(2);
     points_ind = ceil( points_ind ./ TILE_SIZE );
-    
-    % Add gradient weighting to map which increases with distance from target
-    dx2 = repmat( (map_origin(1)+TILE_SIZE/2) , 1, MAP_SIZE) + (TILE_SIZE * (0:MAP_SIZE-1));
-    dy2 = repmat( (map_origin(2)+TILE_SIZE/2) , 1, MAP_SIZE) + (TILE_SIZE * (0:MAP_SIZE-1));
-    dx2 = dx2 - repmat( target(1), 1, MAP_SIZE );
-    dy2 = dy2 - repmat( target(2), 1, MAP_SIZE );
-    dx2 = dx2.^2;
-    dy2 = dy2.^2;
-    dist_from_target = repmat( dx2, MAP_SIZE, 1)' + repmat( dy2, MAP_SIZE, 1);
-    dist_from_target = dist_from_target.^(1/2);
-    map = dist_from_target ./  TILE_SIZE;
     
     % Give infinite weighting to map tiles with obstacles (walls)
     % Not vectorized. For loop is slow, but easy
@@ -111,8 +134,8 @@ function [ desired_heading ] = pathfinder( current_map, robot_pos, target, SAVE_
     % maintain a count of empty cells, and append new entries to 
     % map_frontier when necessary
     map_frontier(3,:) = inf; % Minimum priority
-    map_frontier(1,1) = ceil( MAP_SIZE/2 );
-    map_frontier(2,1) = ceil( MAP_SIZE/2 );
+    map_frontier(1,1) = robot_pos_ind(1);
+    map_frontier(2,1) = robot_pos_ind(2);
     map_frontier(3,1) = 0; % Maximum priority
     size_frontier = 1;
     num_empty_cells = 0;
@@ -204,7 +227,7 @@ function [ desired_heading ] = pathfinder( current_map, robot_pos, target, SAVE_
     while( ~found_path );
         step = step + 1;
         path(:, step) = came_from(:, path(1, step-1), path(2, step-1));
-        if (path(1, step) == ceil(MAP_SIZE/2)) && (path(2, step) == ceil(MAP_SIZE/2))
+        if (path(1, step) == robot_pos_ind(1)) && (path(2, step) == robot_pos_ind(2))
             path = fliplr( path ); % Reverse order so path(1) is current pos
             found_path = 1;
         end
@@ -225,5 +248,9 @@ function [ desired_heading ] = pathfinder( current_map, robot_pos, target, SAVE_
         im = imagesc(x_rng, y_rng, map');
         im.AlphaData = VIS_MAP_ALPHA;
     end
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% DEBUG
+    desired_heading = 5;
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 end
 
