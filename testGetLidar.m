@@ -19,6 +19,12 @@ w = [   1   1   101 1;
         30  70  50  70];
     
 [numWalls,~] = size(w);
+
+% getLidar Macros
+    NUM_LIDAR_LINES     = 50;
+    LIDAR_RANGE         = 40;
+    LIDAR_STD_DEV       = 1;
+    LIDAR_BIAS          = 0;
     
 
 for i = 1:80
@@ -55,5 +61,5 @@ for i = 1:240
         line([roboX;X],[roboY;Y],'Color',[1 0 0])
     end
     
-    pause(0.03)
+    pause(0.1)
 end

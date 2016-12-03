@@ -22,6 +22,12 @@ function [ ] = main( )
     VISUALIZE_PATH      = 1;
     VIS_MAP_ALPHA       = 0.3; % Transparency percentage
     
+    % getLidar Macros
+    NUM_LIDAR_LINES     = 50;
+    LIDAR_RANGE         = 40;
+    LIDAR_STD_DEV       = 4;
+    LIDAR_BIAS          = 0;
+    
     % Save macros to file so all functions can access. Overwrite old file
     save( SAVE_FILE );
     

@@ -1,7 +1,7 @@
 function [lidarRays] = getLidar(robotX,robotY,walls)
-%Returns a "numLines"x2 array of lidar data
+%Returns a "NUM_LIDAR_LINES"x2 array of lidar data
 %   lidarRays = [[radius1, radius2...]',[theta1,theta2...]'];
-%   0 <= radius <= lidarRange
+%   0 <= radius <= LIDAR_RANGE
 %   radius is in pixels from (robotX,robotY) to obstacle
 %   0 <= theta <= 2*pi
 %   theta is in radians from global positive x axis
@@ -14,13 +14,10 @@ function [lidarRays] = getLidar(robotX,robotY,walls)
 %
 %   Requires isBetween.m
 
-numLines = 50;
-lidarRange = 40;
-
 %Create rays matrix
-t = linspace(0,2*pi,numLines+1);
+t = linspace(0,2*pi,NUM_LIDAR_LINES+1);
 for i = 1:(length(t)-1);
-    lidarRays(i,1) = lidarRange;
+    lidarRays(i,1) = LIDAR_RANGE;
     lidarRays(i,2) = t(i);
 end
 
@@ -31,8 +28,8 @@ end
 for i = 1:numRays
     
     %Find its ending coordinate
-    X = robotX + lidarRange*cos(t(i));
-    Y = robotY + lidarRange*sin(t(i));
+    X = robotX + LIDAR_RANGE*cos(t(i));
+    Y = robotY + LIDAR_RANGE*sin(t(i));
     
     %Find standard form of LIDAR ray
     R = [robotX robotY ; X Y];
@@ -60,16 +57,24 @@ for i = 1:numRays
             temp = hypot((intX-robotX),(intY-robotY));
             
             %Clip ranges beyond max sensitivity
-            if(temp > lidarRange)
-                temp = lidarRange;
+            if(temp > LIDAR_RANGE)
+                temp = LIDAR_RANGE;
             end
             
             %Only store the minimum range for each wall
             if (lidarRays(i,1) > temp)
                 lidarRays(i,1) = temp;
+                
             end
         else
 %             disp('NOPE')
+        end
+    end
+    
+    for i = 1:numRays
+        if (lidarRays(i,1) < 40)
+            lidarRays(i,1) = lidarRays(i,1) + ...
+                LIDAR_STD_DEV*(sum(rand(12,1))-6.0) + LIDAR_BIAS;
         end
     end
 end
