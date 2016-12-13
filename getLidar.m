@@ -16,12 +16,6 @@ function [lidarRays] = getLidar(robotX,robotY,walls)
 
 %Create rays matrix
 
-% getLidar Macros
-    NUM_LIDAR_LINES     = 50;
-    LIDAR_RANGE         = 40;
-    LIDAR_STD_DEV       = 0.5;
-    LIDAR_BIAS          = 0;
-    
 t = linspace(0,2*pi,NUM_LIDAR_LINES+1);
 for i = 1:(length(t)-1);
     lidarRays(i,1) = LIDAR_RANGE;
