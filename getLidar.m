@@ -21,6 +21,7 @@ LIDAR_STD_DEV       = 4;
 LIDAR_BIAS          = 0;
 
 %Create rays matrix
+
 t = linspace(0,2*pi,NUM_LIDAR_LINES+1);
 for i = 1:(length(t)-1);
     lidarRays(i,1) = LIDAR_RANGE;
@@ -81,6 +82,11 @@ for i = 1:numRays
         if (lidarRays(i,1) < 40)
             lidarRays(i,1) = lidarRays(i,1) + ...
                 LIDAR_STD_DEV*(sum(rand(12,1))-6.0) + LIDAR_BIAS;
+        end
+    end
+    for i = 1:numRays
+        if (lidarRays(i,1) < 0)
+            lidarRays(i,1) = 0;
         end
     end
 end
