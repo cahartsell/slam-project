@@ -3,3 +3,9 @@
 
 # MATLAB workspace files
 *.mat
+
+# Windows 64-bit mex files generated from MATLAB compilation
+*.mexw64
+
+# Windows 64-bit mex debug files
+*.mexw64.pdb
