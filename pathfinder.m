@@ -1,18 +1,25 @@
-function [ desired_heading, map ] = pathfinder( current_obstacles, robot_pos, target, SAVE_FILE, map )
+function [ desired_heading, map ] = pathfinder(robot_pos, target, map, slam_map)
 %PATHFINDER Summary of this function goes here
 %   Detailed explanation goes here
     
     % NOTE: Can't load variables from workspace into a function which uses
     %       nested functions. Avoid nested functions
-    load( SAVE_FILE );
+    
+    %pathfinder Macros
+    ENVIRONMENT_SIZE    = 120;
+    TILE_SIZE           = 1;
+    MAP_SIZE            = ENVIRONMENT_SIZE / TILE_SIZE; % This should be an integer
+    VISUALIZE_MAP       = 1;
+    VISUALIZE_PATH      = 1;
+    VIS_MAP_ALPHA       = 0.3; % Transparency percentage
+    SLAM_THRESHOLD      = 127; % Threshold for determining if obstacle is present
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %                       MAP BUILDING                        %
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    % Initialize map (centered on global environment origin)
+    % Initialize map (aligned with global environment origin)
     map_origin(1) = 0;
     map_origin(2) = 0; 
-    [ num_walls, ~ ] = size( current_obstacles );
     redraw_map = size( find(map) );  % If map is empty, need to redraw
     redraw_map = ~redraw_map;
     
@@ -34,8 +41,9 @@ function [ desired_heading, map ] = pathfinder( current_obstacles, robot_pos, ta
     if (target_ind ~= last_target)
         redraw_map = 1;
     end
-
     
+    % If target has moved, need to re-weight map tiles
+    redraw_map = 1; % TEMP always redraw
     if (redraw_map)
         % Add gradient weighting to map which increases with distance from target
         dx2 = repmat( (map_origin(1)+TILE_SIZE/2) , 1, MAP_SIZE) + (TILE_SIZE * (0:MAP_SIZE-1));
@@ -48,56 +56,66 @@ function [ desired_heading, map ] = pathfinder( current_obstacles, robot_pos, ta
         dist_from_target = dist_from_target.^(1/2);
         map = dist_from_target ./  TILE_SIZE;
     end
-    
-    % Determine set of points along each wall from the current wall map. 
-    dx = current_obstacles(:,3) - current_obstacles(:,1);
-    dy = current_obstacles(:,4) - current_obstacles(:,2);
-    wall_len = sqrt( dx.^2 + dy.^2 );
-    num_points = ceil( wall_len / TILE_SIZE );
-    max_num_points = max( num_points );
-    wallXSteps = (dx ./ (max_num_points - 1)) * (0:(max_num_points-1));
-    wallYSteps = (dy ./ (max_num_points - 1)) * (0:(max_num_points-1));
-    points(1, :, :) = (repmat(current_obstacles(:,1), 1, max_num_points) + wallXSteps)';
-    points(2, :, :) = (repmat(current_obstacles(:,2), 1, max_num_points) + wallYSteps)';
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    % points(x,y,z) is addressed:    
-    %   x = x-coord (1) or y-coord (2)
-    %   y = Point along wall ( 1 to max_num_points )
-    %   x = Wall Number ( 1 to num_walls )
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-    % Convert wall points from global frame to map indicies
-    % points_ind addressed the same as points
-    points_ind(1,:,:) = points(1, :, :) - map_origin(1);
-    points_ind(2,:,:) = points(2, :, :) - map_origin(2);
-    points_ind = ceil( points_ind ./ TILE_SIZE );
-    
+ 
     % Give infinite weighting to map tiles with obstacles (walls)
-    % Not vectorized. For loop is slow, but easy
-    % Check that indicies are within range
-    temp = points_ind > 0;
-    points_ind = points_ind .* temp;
-    temp = points_ind <= MAP_SIZE;
-    points_ind = points_ind .* temp;
-    for i = 1:num_walls
-        last_x = points_ind(1,1,i);
-        last_y = points_ind(2,1,i);
-        for j = 1:max_num_points
-            x_ind = points_ind(1,j,i);
-            y_ind = points_ind(2,j,i);
-            if (x_ind > 0) && (y_ind > 0)
-                map( x_ind, y_ind ) = inf;
-                % Simple (but not particularly precise) method to prevent
-                % diagonal jumps through walls
-                if (last_x > 0) && (last_y > 0) && (x_ind ~= last_x) && (y_ind ~= last_y)
-                    map( last_x, y_ind ) = inf;
-                    map( x_ind, last_y ) = inf;
-                end
-                last_x = x_ind;
-                last_y = y_ind;
-            end
-        end
-    end
+    slam_map = slam_map < SLAM_THRESHOLD;
+    slam_map = slam_map * inf;
+    temp = find(isnan( slam_map ));
+    slam_map(temp) = 0;
+    slam_map = flip( slam_map );
+    map = map + slam_map';
+    
+% Old method using wall map. Not needed with SLAM 
+%     
+%     % Determine set of points along each wall from the current wall map. 
+%     dx = current_obstacles(:,3) - current_obstacles(:,1);
+%     dy = current_obstacles(:,4) - current_obstacles(:,2);
+%     wall_len = sqrt( dx.^2 + dy.^2 );
+%     num_points = ceil( wall_len / TILE_SIZE );
+%     max_num_points = max( num_points );
+%     wallXSteps = (dx ./ (max_num_points - 1)) * (0:(max_num_points-1));
+%     wallYSteps = (dy ./ (max_num_points - 1)) * (0:(max_num_points-1));
+%     points(1, :, :) = (repmat(current_obstacles(:,1), 1, max_num_points) + wallXSteps)';
+%     points(2, :, :) = (repmat(current_obstacles(:,2), 1, max_num_points) + wallYSteps)';
+%     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%     % points(x,y,z) is addressed:    
+%     %   x = x-coord (1) or y-coord (2)
+%     %   y = Point along wall ( 1 to max_num_points )
+%     %   x = Wall Number ( 1 to num_walls )
+%     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% 
+%     % Convert wall points from global frame to map indicies
+%     % points_ind addressed the same as points
+%     points_ind(1,:,:) = points(1, :, :) - map_origin(1);
+%     points_ind(2,:,:) = points(2, :, :) - map_origin(2);
+%     points_ind = ceil( points_ind ./ TILE_SIZE );
+%
+%     % Give infinite weighting to map tiles with obstacles (walls)
+%     % Not vectorized. For loop is slow, but easy
+%     % Check that indicies are within range
+%     temp = points_ind > 0;
+%     points_ind = points_ind .* temp;
+%     temp = points_ind <= MAP_SIZE;
+%     points_ind = points_ind .* temp;
+%     for i = 1:num_walls
+%         last_x = points_ind(1,1,i);
+%         last_y = points_ind(2,1,i);
+%         for j = 1:max_num_points
+%             x_ind = points_ind(1,j,i);
+%             y_ind = points_ind(2,j,i);
+%             if (x_ind > 0) && (y_ind > 0)
+%                 map( x_ind, y_ind ) = inf;
+%                 % Simple (but not particularly precise) method to prevent
+%                 % diagonal jumps through walls
+%                 if (last_x > 0) && (last_y > 0) && (x_ind ~= last_x) && (y_ind ~= last_y)
+%                     map( last_x, y_ind ) = inf;
+%                     map( x_ind, last_y ) = inf;
+%                 end
+%                 last_x = x_ind;
+%                 last_y = y_ind;
+%             end
+%         end
+%     end
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %                       PATHFINDING                         %
@@ -144,7 +162,9 @@ function [ desired_heading, map ] = pathfinder( current_obstacles, robot_pos, ta
         cur_x_index = map_frontier(1, cur_frontier_index);
         cur_y_index = map_frontier(2, cur_frontier_index);
         
-%         %%%%%%%%%%%%%%%%%%%%%%%%%%% DEBUG
+%         %%%%%%%%%%%%%%%%%%%%%%%%%%% DEBUG 
+%         Visulaization of expanding frontier
+%
 %         temp_map = map;
 %         temp_ind = find( map_frontier(3,:) < inf );
 %         [~, sz] = size( temp_ind );
@@ -233,6 +253,23 @@ function [ desired_heading, map ] = pathfinder( current_obstacles, robot_pos, ta
         end
     end
     
+    % Determine heading to next point
+    % Returned relative to global frame (NOT to robot current heading)
+    % Returned in range (0, 360) in degrees
+    temp = (path(:,2) * TILE_SIZE);
+    temp = temp - map_origin';
+    temp = temp - (TILE_SIZE/2);
+    dx = robot_pos(1) - temp(1);
+    dy = robot_pos(2) - temp(2);
+    if (dx == 0) 
+        dx = 0.0001;
+    end
+    desired_heading = atan2d(dy,dx);
+    if (desired_heading < 0)
+        desired_heading = desired_heading + 360;
+    end
+    
+    
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %                       VISUALIZATION                       %
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -248,9 +285,5 @@ function [ desired_heading, map ] = pathfinder( current_obstacles, robot_pos, ta
         im = imagesc(x_rng, y_rng, map');
         im.AlphaData = VIS_MAP_ALPHA;
     end
-    
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% DEBUG
-    desired_heading = 5;
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 end
 
