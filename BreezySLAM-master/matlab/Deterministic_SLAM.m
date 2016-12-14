@@ -20,14 +20,14 @@ classdef Deterministic_SLAM < SinglePositionSLAM
        
     methods
         
-        function slam = Deterministic_SLAM(laser, map_size_pixels, map_size_meters)
+        function slam = Deterministic_SLAM(laser, map_size_pixels, map_size_meters, start_pos)
         %Creates a Deterministic_SLAM object suitable for updating with new Lidar and odometry data.
         %    slam = Deterministic_SLAM(laser, map_size_pixels, map_size_meters)
         %    laser is a Laser object representing the specifications of your Lidar unit
         %    map_size_pixels is the size of the square map in pixels
         %    map_size_meters is the size of the square map in meters
             
-            slam = slam@SinglePositionSLAM(laser, map_size_pixels, map_size_meters);
+            slam = slam@SinglePositionSLAM(laser, map_size_pixels, map_size_meters, start_pos);
             
         end
         

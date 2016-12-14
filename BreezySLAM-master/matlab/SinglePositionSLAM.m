@@ -43,15 +43,14 @@ classdef SinglePositionSLAM < CoreSLAM
     
     methods (Access = 'public')
         
-        function slam = SinglePositionSLAM(laser, map_size_pixels, map_size_meters)
+        function slam = SinglePositionSLAM(laser, map_size_pixels, map_size_meters, start_pos)
             
             slam = slam@CoreSLAM(laser, map_size_pixels, map_size_meters);
             
             % Initialize the position (x, y, theta)
-            init_coord_mm = 500 * map_size_meters; % center of map
-            slam.position.x_mm =  init_coord_mm;
-            slam.position.y_mm =  init_coord_mm;
-            slam.position.theta_degrees =  0;
+            slam.position.x_mm =  start_pos(1);
+            slam.position.y_mm =  start_pos(2);
+            slam.position.theta_degrees =  start_pos(3);
             
         end
         

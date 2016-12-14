@@ -102,12 +102,7 @@ classdef CoreSLAM
             %     velocities is an optional list of velocities [dxy_mm, dtheta_degrees, dt_seconds] for odometry
                                     
             % Build a scan for computing distance to map, and one for updating map
-            % Default to zero velocities
-            if nargin < 3
-                velocities = [0, 0, 0];
-            end
-            
-            
+                        
             slam.scan_update(slam.scan_for_mapbuild, scans_mm)            
             slam.scan_update(slam.scan_for_distance, scans_mm)
                                         
