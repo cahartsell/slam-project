@@ -115,7 +115,10 @@ for i = 1:240
     slamLidarRays(mid+1:NUM_LIDAR_LINES,:) = flip( temp(mid+1:NUM_LIDAR_LINES,:) );
     
     % SLAM update position and map
-    slam = slam.update(slamLidarRays(:,1), [100.0, 0.0, 0.1]);
+    % velocities = [linear_speed_mm/s, angular_speed_deg/s, time_delta_s]
+    % velocities will need to be calculated based on motion model odometry
+    velocities = [100.0, 0.0, 0.1];
+    slam = slam.update(slamLidarRays(:,1), velocities);
     [x_mm, y_mm, theta_degrees] = slam.getpos();
     slam_map = slam.getmap();
         
