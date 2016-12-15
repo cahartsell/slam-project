@@ -187,6 +187,7 @@ function [ desired_heading, map ] = pathfinder(robot_pos, target, map, slam_map)
                 end
                 if (i ~= 0) && (j ~= 0)
                     next_cost = 1.414; % Correct distance cost for diagonal steps
+                    continue; % skip diagonals
                 else
                     next_cost = 1;
                 end
@@ -242,13 +243,21 @@ function [ desired_heading, map ] = pathfinder(robot_pos, target, map, slam_map)
         end
     end
     
+    
     % Create path by backtracking steps from goal to start
     found_path = 0;
     step = 1;
     path(:, step) = goal_index(:);
     while( ~found_path );
         step = step + 1;
-        path(:, step) = came_from(:, path(1, step-1), path(2, step-1));
+        if (path(1, step-1) ~= 0) && (path(2, step-1) ~= 0)
+            path(:, step) = came_from(:, path(1, step-1), path(2, step-1));
+        else
+            path = zeros(2,2);
+            path(1,:) = robot_pos_ind(1);
+            path(2,:) = robot_pos_ind(2);
+            break;
+        end
         if (path(1, step) == robot_pos_ind(1)) && (path(2, step) == robot_pos_ind(2))
             path = fliplr( path ); % Reverse order so path(1) is current pos
             found_path = 1;

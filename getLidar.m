@@ -1,4 +1,4 @@
-function [lidarRays] = getLidar(robotX,robotY,walls)
+function [lidarRays] = getLidar(robotX,robotY,robotTheta,walls)
 %Returns a "NUM_LIDAR_LINES"x2 array of lidar data
 %   lidarRays = [[radius1, radius2...]',[theta1,theta2...]'];
 %   0 <= radius <= LIDAR_RANGE
@@ -15,17 +15,19 @@ function [lidarRays] = getLidar(robotX,robotY,walls)
 %   Requires isBetween.m
 
 % getLidar Macros
-NUM_LIDAR_LINES     = 50;
+NUM_LIDAR_LINES     = 100;
 LIDAR_RANGE         = 40;
 LIDAR_STD_DEV       = 0;
 LIDAR_BIAS          = 0;
 
 %Create rays matrix
 
+robotTheta = deg2rad(robotTheta);
+
 t = linspace(0,2*pi,NUM_LIDAR_LINES+1);
 for i = 1:(length(t)-1);
     lidarRays(i,1) = LIDAR_RANGE;
-    lidarRays(i,2) = t(i);
+    lidarRays(i,2) = t(i) + robotTheta;
 end
 
 [numWalls,~] = size(walls);
@@ -35,8 +37,8 @@ end
 for i = 1:numRays
     
     %Find its ending coordinate
-    X = robotX + LIDAR_RANGE*cos(t(i));
-    Y = robotY + LIDAR_RANGE*sin(t(i));
+    X = robotX + LIDAR_RANGE*cos( t(i) + robotTheta);
+    Y = robotY + LIDAR_RANGE*sin( t(i) + robotTheta);
     
     %Find standard form of LIDAR ray
     R = [robotX robotY ; X Y];

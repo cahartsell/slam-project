@@ -39,7 +39,7 @@
 % You should have received a copy of the GNU Lesser General Public License
 % along with this code.  If not, see <http://www.gnu.org/licenses/>.
 
-function logdemo(dataset, use_odometry, seed)
+function logdemo1(dataset, use_odometry, seed)
 
 mex ../matlab/mex_breezyslam.c ../c/coreslam.c ../c/coreslam_sisd.c ../c/random.c ../c/ziggurat.c
 mex -g ../matlab/mex_breezyslam.c ../c/coreslam.c ../c/coreslam_sisd.c ../c/random.c ../c/ziggurat.c
@@ -72,7 +72,7 @@ end
 if seed
     slam = RMHC_SLAM(MinesLaser(), MAP_SIZE_PIXELS, MAP_SIZE_METERS, seed);
 else
-    slam = Deterministic_SLAM(MinesLaser(), MAP_SIZE_PIXELS, MAP_SIZE_METERS);
+    slam = Deterministic_SLAM(MinesLaser(), MAP_SIZE_PIXELS, MAP_SIZE_METERS, [6*500, 6*500, 0]);
 end
 
 % Initialize previous time for delay

@@ -26,10 +26,10 @@ TILE_SIZE           = 2; % Recommend even number
 MAP_SIZE            = ENVIRONMENT_SIZE / TILE_SIZE; % This should be an integer
 VISUALIZE_MAP       = 1;
 VISUALIZE_PATH      = 1;
-VIS_MAP_ALPHA       = 0.3; % Transparency percentage
+VIS_MAP_ALPHA       = 0.5; % Transparency percentage
 
 % getLidar Macros
-NUM_LIDAR_LINES     = 50;
+NUM_LIDAR_LINES     = 100;
 LIDAR_RANGE         = 40;
 LIDAR_STD_DEV       = 1;
 LIDAR_BIAS          = 0;
@@ -37,7 +37,7 @@ LIDAR_BIAS          = 0;
 % Breezy SLAM Macros
 MAP_SIZE_PIXELS          = ENVIRONMENT_SIZE * 1;
 MAP_SIZE_METERS          = ENVIRONMENT_SIZE / 10;
-ROBOT_SIZE_PIXELS        = 10;
+ROBOT_SIZE_PIXELS        = 1;
 
 % Save macros to file so all functions can access. Overwrite old file
 % Generate random environment and initialize map
@@ -71,7 +71,10 @@ priorValues = [0;0;0;0;0];
 roboX = robot_start(1);
 roboY = robot_start(2);
 last_pos = robot_start;
-steering_angle = robot_start(3);
+last_pos(3) = 0;
+steering_angle = 0;
+odo_roboX = roboX;
+odo_roboY = roboY;
 
 % Define Laser
 laser.scan_size = NUM_LIDAR_LINES;
@@ -86,6 +89,9 @@ start_pos(1) = robot_start(1) * 100;
 start_pos(2) = (ENVIRONMENT_SIZE - robot_start(2)) * 100;
 start_pos(3) = 0;
 slam = Deterministic_SLAM(laser, MAP_SIZE_PIXELS, MAP_SIZE_METERS, start_pos);
+velocities = [0, 0, 0];
+theta_degrees = 0;
+slam_theta = 0;
 
 for i = 1:240
     % Get current position and sample lidar
@@ -94,7 +100,7 @@ for i = 1:240
     if (roboX > ENVIRONMENT_SIZE) || (roboY > ENVIRONMENT_SIZE)
         break;
     end
-    lidarRays = getLidar( roboX, roboY, wall_map );
+    lidarRays = getLidar( roboX, roboY, steering_angle, wall_map );
     
     % Configure plot
     clf;
@@ -112,7 +118,7 @@ for i = 1:240
     plot(target_pos(1), target_pos(2), '*');
     
     % Convert Lidar Rays to Breezy SLAM compatable format
-    % Breezy SLAM takes data from -180 to 180 degrees
+    % Breezy SLAM takes data from -180 to +180 degrees
     % getLidar returns data from 0 to 360 degrees
     temp = lidarRays < LIDAR_RANGE;
     temp = temp * 100;
@@ -120,24 +126,28 @@ for i = 1:240
     mid = round(NUM_LIDAR_LINES/2);
     slamLidarRays(1:mid,:) = flip( temp(1:mid,:) );
     slamLidarRays(mid+1:NUM_LIDAR_LINES,:) = flip( temp(mid+1:NUM_LIDAR_LINES,:) );
-    
+%      slamLidarRays =  temp ;
+
     % SLAM update position and map
     % velocities = [linear_speed_mm/s, angular_speed_deg/s, time_delta_s]
-    velocities = findVelocities( [roboX, roboY, steering_angle], last_pos, 1);
+    velocities = findVelocities( [odo_roboX, odo_roboY, steering_angle], last_pos, 1);
     slam = slam.update(slamLidarRays(:,1), velocities);
     [x_mm, y_mm, theta_degrees] = slam.getpos();
     slam_map = slam.getmap();
+    slam_theta = -theta_degrees;
+    slam_roboX = (x_mm / 100);
+    slam_roboY = ENVIRONMENT_SIZE - (y_mm / 100);
         
     % Pathfinding
     [ heading, map ] = pathfinder( [roboX, roboY], target_pos, map, slam_map );
     
     % Display Lidar rays
-    [numRays,~] = size(lidarRays);
-    for j = 1:numRays
-        X = roboX + lidarRays(j,1)*cos(lidarRays(j,2));
-        Y = roboY + lidarRays(j,1)*sin(lidarRays(j,2));
-        line([roboX;X],[roboY;Y],'Color',[1 0 0])
-    end
+%     [numRays,~] = size(lidarRays);
+%     for j = 1:numRays
+%         X = roboX + lidarRays(j,1)*cos(lidarRays(j,2));
+%         Y = roboY + lidarRays(j,1)*sin(lidarRays(j,2));
+%         line([roboX;X],[roboY;Y],'Color',[1 0 0])
+%     end
 
     % Display map
     subplot(2,1,2);
@@ -150,8 +160,10 @@ for i = 1:240
     [steering_angle, priorValues] = steer(heading,priorValues);
     
     % Update motion model
-    [roboX,roboY,~,~] = motionModel(steering_angle, roboX, roboY);
+    [roboX,roboY,odo_roboX,odo_roboY] = motionModel(steering_angle, roboX, roboY);
     
-    pause(0.3)
+    pause(0.1)
 end
+
+close all;
 
