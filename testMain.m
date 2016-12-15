@@ -70,11 +70,13 @@ map = zeros(MAP_SIZE, MAP_SIZE);
 priorValues = [0;0;0;0;0];
 roboX = robot_start(1);
 roboY = robot_start(2);
+last_pos = robot_start;
+steering_angle = robot_start(3);
 
 % Define Laser
 laser.scan_size = NUM_LIDAR_LINES;
 laser.scan_rate_hz = 10;
-laser.detection_angle_degrees = 359;
+laser.detection_angle_degrees = 360;
 laser.distance_no_detection_mm = LIDAR_RANGE * 100;
 laser.detection_margin = 10;
 laser.offset_mm = 1;
@@ -84,7 +86,7 @@ start_pos(1) = robot_start(1) * 100;
 start_pos(2) = (ENVIRONMENT_SIZE - robot_start(2)) * 100;
 start_pos(3) = 0;
 slam = Deterministic_SLAM(laser, MAP_SIZE_PIXELS, MAP_SIZE_METERS, start_pos);
-    
+
 for i = 1:240
     % Get current position and sample lidar
 %     roboX = pos(i,1);
@@ -121,14 +123,13 @@ for i = 1:240
     
     % SLAM update position and map
     % velocities = [linear_speed_mm/s, angular_speed_deg/s, time_delta_s]
-    % velocities will need to be calculated based on motion model odometry
-    velocities = [100.0, 0.0, 0.1];
+    velocities = findVelocities( [roboX, roboY, steering_angle], last_pos, 1);
     slam = slam.update(slamLidarRays(:,1), velocities);
     [x_mm, y_mm, theta_degrees] = slam.getpos();
     slam_map = slam.getmap();
         
     % Pathfinding
-    [ heading, map ] = pathfinder( pos(i,:), target_pos, map, slam_map );
+    [ heading, map ] = pathfinder( [roboX, roboY], target_pos, map, slam_map );
     
     % Display Lidar rays
     [numRays,~] = size(lidarRays);
@@ -145,10 +146,11 @@ for i = 1:240
     hold on
     
     % Update steering controller
-    [steering_angle priorValues] = steer(heading,priorValues);
+    last_pos = [roboX, roboY, steering_angle];
+    [steering_angle, priorValues] = steer(heading,priorValues);
     
     % Update motion model
-    [roboX,roboY,~,~] = motionModel(steering_angle, roboX,roboY);
+    [roboX,roboY,~,~] = motionModel(steering_angle, roboX, roboY);
     
     pause(0.3)
 end

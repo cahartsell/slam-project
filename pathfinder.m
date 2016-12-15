@@ -1,6 +1,8 @@
 function [ desired_heading, map ] = pathfinder(robot_pos, target, map, slam_map)
-%PATHFINDER Summary of this function goes here
-%   Detailed explanation goes here
+% Finds the best path to the target based on the current SLAM map
+%   Creates a grid map and calculates the distance from each map grid to
+%   the target. Distance is used as a cost function to determine shortest
+%   route. A* algorithm is used to find best route.
     
     % NOTE: Can't load variables from workspace into a function which uses
     %       nested functions. Avoid nested functions
@@ -259,8 +261,8 @@ function [ desired_heading, map ] = pathfinder(robot_pos, target, map, slam_map)
     temp = (path(:,2) * TILE_SIZE);
     temp = temp - map_origin';
     temp = temp - (TILE_SIZE/2);
-    dx = robot_pos(1) - temp(1);
-    dy = robot_pos(2) - temp(2);
+    dx = temp(1) - robot_pos(1);
+    dy = temp(2) - robot_pos(2);
     if (dx == 0) 
         dx = 0.0001;
     end
