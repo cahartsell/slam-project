@@ -49,22 +49,27 @@ map = zeros(MAP_SIZE, MAP_SIZE);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % DEBUG
 % Sample path for robot. Should be replaced by motion model
-pos = zeros(240,2);
-pos(1,1) = robot_start(1);
-pos(1,2) = robot_start(2);
-for i = 2:80
-    pos(i,1) = pos(i-1,1)+1;
-    pos(i,2) = pos(i-1,2);
-end
-for i = 81:160
-    pos(i,1) = pos(i-1,1);
-    pos(i,2) = pos(i-1,2)+1;
-end
-for i = 161:240
-    pos(i,1) = pos(i-1,1)-1;
-    pos(i,2) = pos(i-1,2)-1;
-end
+% pos = zeros(240,2);
+% pos(1,1) = robot_start(1);
+% pos(1,2) = robot_start(2);
+% for i = 2:80
+%     pos(i,1) = pos(i-1,1)+1;
+%     pos(i,2) = pos(i-1,2);
+% end
+% for i = 81:160
+%     pos(i,1) = pos(i-1,1);
+%     pos(i,2) = pos(i-1,2)+1;
+% end
+% for i = 161:240
+%     pos(i,1) = pos(i-1,1)-1;
+%     pos(i,2) = pos(i-1,2)-1;
+% end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% Initialize motion controller
+priorValues = [0;0;0;0;0];
+roboX = robot_start(1);
+roboY = robot_start(2);
 
 % Define Laser
 laser.scan_size = NUM_LIDAR_LINES;
@@ -82,8 +87,8 @@ slam = Deterministic_SLAM(laser, MAP_SIZE_PIXELS, MAP_SIZE_METERS, start_pos);
     
 for i = 1:240
     % Get current position and sample lidar
-    roboX = pos(i,1);
-    roboY = pos(i,2);
+%     roboX = pos(i,1);
+%     roboY = pos(i,2);
     if (roboX > ENVIRONMENT_SIZE) || (roboY > ENVIRONMENT_SIZE)
         break;
     end
@@ -138,6 +143,12 @@ for i = 1:240
     hold off
     image(slam_map/4) % Keep bytes in [0,64] for colormap
     hold on
+    
+    % Update steering controller
+    [steering_angle priorValues] = steer(heading,priorValues);
+    
+    % Update motion model
+    [roboX,roboY,~,~] = motionModel(steering_angle, roboX,roboY);
     
     pause(0.3)
 end
