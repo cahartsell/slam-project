@@ -7,6 +7,6 @@ function [output_angle, new_priorValues] = steer(input_angle,priorValues)
     new_priorValues(5,1) = input_angle;
 
     %Adjusts these coefficients to tune PI performance
-    output_angle = 0.5*input_angle + 0.5*(mean(priorValues));
+    output_angle = 0.8*input_angle + 0.2*(mean(priorValues));
 end
 

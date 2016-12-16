@@ -12,13 +12,14 @@ mex ./BreezySLAM-master/matlab/mex_breezyslam.c ./BreezySLAM-master/c/coreslam.c
 % Global Macros
 ENVIRONMENT_SIZE    = 120;
 SAVE_FILE           = 'environment.mat';
+VIS_LIDAR_RAYS      = 0;
 
 % generateEnvironment Macros
 MAX_WALL_LEN        = 60;
 MIN_WALL_LEN        = 10;
 NUM_WALLS           = 8;
 NUM_WALL_POINTS     = 2;
-MIN_TARGET_SEP      = 80;
+MIN_TARGET_SEP      = 120;
 WALL_EDGE_PAD       = 5;
 
 %pathfinder Macros
@@ -26,7 +27,7 @@ TILE_SIZE           = 2; % Recommend even number
 MAP_SIZE            = ENVIRONMENT_SIZE / TILE_SIZE; % This should be an integer
 VISUALIZE_MAP       = 1;
 VISUALIZE_PATH      = 1;
-VIS_MAP_ALPHA       = 0.5; % Transparency percentage
+VIS_MAP_ALPHA       = 0.7; % Transparency percentage
 
 % getLidar Macros
 NUM_LIDAR_LINES     = 100;
@@ -70,8 +71,10 @@ map = zeros(MAP_SIZE, MAP_SIZE);
 priorValues = [0;0;0;0;0];
 roboX = robot_start(1);
 roboY = robot_start(2);
-last_pos = robot_start;
-last_pos(3) = 0;
+last_true_pos = robot_start;
+last_true_pos(3) = 0;
+last_odo_pos = robot_start;
+last_odo_pos(3)= 0;
 steering_angle = 0;
 odo_roboX = roboX;
 odo_roboY = roboY;
@@ -93,6 +96,10 @@ velocities = [0, 0, 0];
 theta_degrees = 0;
 slam_theta = 0;
 
+close all;
+f1 = figure();
+f2 = figure();
+
 for i = 1:240
     % Get current position and sample lidar
 %     roboX = pos(i,1);
@@ -103,8 +110,8 @@ for i = 1:240
     lidarRays = getLidar( roboX, roboY, steering_angle, wall_map );
     
     % Configure plot
+    figure(f1);
     clf;
-    subplot(2,1,1);
     colormap default;
     
     % Display Environment
@@ -121,17 +128,18 @@ for i = 1:240
     % Breezy SLAM takes data from -180 to +180 degrees
     % getLidar returns data from 0 to 360 degrees
     temp = lidarRays < LIDAR_RANGE;
+    visLidarRays = lidarRays .* temp;
     temp = temp * 100;
     temp = lidarRays .* temp;
     mid = round(NUM_LIDAR_LINES/2);
     slamLidarRays(1:mid,:) = flip( temp(1:mid,:) );
     slamLidarRays(mid+1:NUM_LIDAR_LINES,:) = flip( temp(mid+1:NUM_LIDAR_LINES,:) );
-%      slamLidarRays =  temp ;
 
     % SLAM update position and map
     % velocities = [linear_speed_mm/s, angular_speed_deg/s, time_delta_s]
-    velocities = findVelocities( [odo_roboX, odo_roboY, steering_angle], last_pos, 1);
-    slam = slam.update(slamLidarRays(:,1), velocities);
+    odo_velocities = findVelocities( [odo_roboX, odo_roboY, steering_angle], last_odo_pos, 1);
+    true_velocities = findVelocities( [roboX, roboY, steering_angle], last_odo_pos, 1);
+    slam = slam.update(slamLidarRays(:,1), odo_velocities);
     [x_mm, y_mm, theta_degrees] = slam.getpos();
     slam_map = slam.getmap();
     slam_theta = -theta_degrees;
@@ -139,28 +147,33 @@ for i = 1:240
     slam_roboY = ENVIRONMENT_SIZE - (y_mm / 100);
         
     % Pathfinding
-    [ heading, map ] = pathfinder( [roboX, roboY], target_pos, map, slam_map );
+    [ heading, map ] = pathfinder( [slam_roboX, slam_roboY], target_pos, map, slam_map );
     
     % Display Lidar rays
-%     [numRays,~] = size(lidarRays);
-%     for j = 1:numRays
-%         X = roboX + lidarRays(j,1)*cos(lidarRays(j,2));
-%         Y = roboY + lidarRays(j,1)*sin(lidarRays(j,2));
-%         line([roboX;X],[roboY;Y],'Color',[1 0 0])
-%     end
+    if( VIS_LIDAR_RAYS )
+        [numRays,~] = size(visLidarRays);
+        for j = 1:numRays
+            X = roboX + visLidarRays(j,1)*cos(visLidarRays(j,2));
+            Y = roboY + visLidarRays(j,1)*sin(visLidarRays(j,2));
+            line([roboX;X],[roboY;Y],'Color',[1 0 0])
+        end
+    end
 
     % Display map
-    subplot(2,1,2);
+    figure(f2)
+    clf
     hold off
     image(slam_map/4) % Keep bytes in [0,64] for colormap
     hold on
     
     % Update steering controller
-    last_pos = [roboX, roboY, steering_angle];
+    last_odo_pos = [odo_roboX, odo_roboY, steering_angle];
+    last_true_pos = [roboX, roboY, steering_angle];
     [steering_angle, priorValues] = steer(heading,priorValues);
     
     % Update motion model
     [roboX,roboY,odo_roboX,odo_roboY] = motionModel(steering_angle, roboX, roboY);
+    roboTheta = steering_angle;
     
     pause(0.1)
 end
