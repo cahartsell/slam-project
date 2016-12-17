@@ -17,7 +17,7 @@ function [lidarRays] = getLidar(robotX,robotY,robotTheta,walls)
 % getLidar Macros
 NUM_LIDAR_LINES     = 100;
 LIDAR_RANGE         = 40;
-LIDAR_STD_DEV       = 0;
+LIDAR_STD_DEV       = 0.0;
 LIDAR_BIAS          = 0;
 
 %Create rays matrix
@@ -80,20 +80,19 @@ for i = 1:numRays
         end
     end
     
-    for i = 1:numRays
-        if (lidarRays(i,1) < 40)
-            lidarRays(i,1) = lidarRays(i,1) + ...
-                LIDAR_STD_DEV*(sum(rand(12,1))-6.0) + LIDAR_BIAS;
-        end
-    end
-    for i = 1:numRays
-        if (lidarRays(i,1) < 0)
-            lidarRays(i,1) = 0;
-        end
-    end
 end
 
-
+for i = 1:numRays
+    if (lidarRays(i,1) < 40)
+        lidarRays(i,1) = lidarRays(i,1) + ...
+            (LIDAR_STD_DEV*lidarRays(i,1))*(sum(rand(12,1))-6.0) + LIDAR_BIAS;
+    end
+end
+for i = 1:numRays
+    if (lidarRays(i,1) < 0)
+        lidarRays(i,1) = 0;
+    end
+end
 
 end
 

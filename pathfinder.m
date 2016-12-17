@@ -13,7 +13,7 @@ function [ desired_heading, map ] = pathfinder(robot_pos, target, map, slam_map)
     MAP_SIZE            = ENVIRONMENT_SIZE / TILE_SIZE; % This should be an integer
     VISUALIZE_MAP       = 1;
     VISUALIZE_PATH      = 1;
-    VIS_MAP_ALPHA       = 0.3; % Transparency percentage
+    VIS_MAP_ALPHA       = 0.5; % Transparency percentage
     SLAM_THRESHOLD      = 127; % Threshold for determining if obstacle is present
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

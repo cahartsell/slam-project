@@ -8,7 +8,7 @@ function [true_roboX, true_roboY, noise_roboX, noise_roboY] = motionModel(steeri
     % Robot speed is in .... (pixels?) per tick
     ROBO_SPEED = 1;
     DISTANCE_STD_DEV = 0.1;
-    STRAIGHT_STD_DEV = 0.01;
+    STRAIGHT_STD_DEV = 0.1;
     
     true_roboX = in_roboX + ROBO_SPEED*cosd(steering_angle);
     
@@ -16,9 +16,9 @@ function [true_roboX, true_roboY, noise_roboX, noise_roboY] = motionModel(steeri
     
     noise_roboX = in_roboX + ...
         (((DISTANCE_STD_DEV*(sum(rand(12,1))-6.0)) + ROBO_SPEED)...
-         * cosd((STRAIGHT_STD_DEV*(sum(rand(12,1))-6.0)) + steering_angle));
+         * cosd(((STRAIGHT_STD_DEV*steering_angle)*(sum(rand(12,1))-6.0)) + steering_angle));
      
     noise_roboY = in_roboY + ...
         (((DISTANCE_STD_DEV*(sum(rand(12,1))-6.0)) + ROBO_SPEED)...
-         * sind((STRAIGHT_STD_DEV*(sum(rand(12,1))-6.0)) + steering_angle));
+         * sind(((STRAIGHT_STD_DEV*steering_angle)*(sum(rand(12,1))-6.0)) + steering_angle));
 end

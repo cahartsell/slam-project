@@ -15,10 +15,9 @@ function [ velocities ] = findVelocities( robot_pos, last_pos, dt )
         dtheta = dtheta + 360;
     elseif (dtheta > 180)
         dtheta = dtheta - 360;
-        dtheta = -dtheta;
     else
-        dtheta = -dtheta;
     end
+    dtheta = -dtheta;
     velocities(2) = dtheta / dt;
     
     velocities(3) = dt;
